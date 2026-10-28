@@ -2,7 +2,11 @@ export const config = {
  name: 'Amor', meeting: '2026-11-23T00:00:00-03:00',
  playlist: 'https://open.spotify.com/playlist/1XWBNWIRgB0HcFzr3uyg1N',
  embed: 'https://open.spotify.com/embed/playlist/1XWBNWIRgB0HcFzr3uyg1N',
- song: 'Te Devoro · Djavan',
+ song: 'Anjos · Venere Vai Venus',
+ songTitle: 'Anjos',
+ songArtist: 'Venere Vai Venus',
+ songUrl: 'https://www.youtube.com/watch?v=mJjHVOv2bWI',
+ songEmbed: 'https://www.youtube.com/embed/mJjHVOv2bWI?playsinline=1&rel=0&controls=1',
  photos: Array.from({length:11},(_,i)=>({id:`original-${i+1}`,src:`/photos/${i+1}.jpg`,caption:['Um pedacinho de você','Meu retrato favorito','Você, do seu jeitinho','Um olhar que fica','A beleza dos detalhes','Seu pequeno universo','Carinho cabe na palma da mão','Companhia boa','Luz de um dia qualquer','Só porque é você','Mais um motivo para sorrir'][i],date:'',description:'Fotografia escolhida para este presente.',heart:false})),
  letters: [
   {title:'Para quando estiver com saudade',text:'Meu bem, queria que esta carta tivesse braços. Assim, quando a saudade apertasse, ela poderia te abraçar por mim. Enquanto esse abraço não chega, fica aqui comigo um pouquinho. Pensa que, do outro lado da espera, tem alguém contando os dias e imaginando como vai ser bom te ver. Você faz falta até nos momentos pequenos.'},
