@@ -1,4 +1,6 @@
-node-linker=hoisted
-enable-global-virtual-store=false
-store-dir=../../work/pnpm-store
-package-import-method=copy
+node_modules/
+.next/
+out/
+.sites-runtime/
+*.tsbuildinfo
+.env*
