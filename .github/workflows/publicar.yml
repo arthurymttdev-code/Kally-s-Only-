@@ -1,0 +1,115 @@
+name: Publicar nosso site
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: read
+    steps:
+      - name: Baixar o projeto
+        uses: actions/checkout@v6
+
+      - name: Preparar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Conferir GitHub Pages
+        id: pages
+        uses: actions/configure-pages@v5
+
+      - name: Organizar arquivos e ajustar fotos
+        env:
+          PAGES_BASE_PATH: ${{ steps.pages.outputs.base_path }}
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const source = process.cwd();
+          const target = path.resolve(process.env.PAGES_STAGING || '.pages-source');
+          if (fs.existsSync(target)) throw new Error('A pasta de preparação já existe. Escolha uma pasta vazia.');
+          fs.mkdirSync(path.join(target, 'app'), { recursive: true });
+          fs.mkdirSync(path.join(target, 'public', 'photos'), { recursive: true });
+          const copy = (from, to) => {
+            if (!fs.existsSync(from)) throw new Error('Falta este arquivo no repositório: ' + from);
+            fs.copyFileSync(from, to);
+          };
+          for (const name of ['page.tsx', 'layout.tsx', 'globals.css', 'config.ts', 'storage.ts']) {
+            const nested = path.join(source, 'app', name);
+            copy(fs.existsSync(nested) ? nested : path.join(source, name), path.join(target, 'app', name));
+          }
+          for (let i = 1; i <= 11; i++) {
+            const nested = path.join(source, 'public', 'photos', `${i}.jpg`);
+            copy(fs.existsSync(nested) ? nested : path.join(source, `${i}.jpg`), path.join(target, 'public', 'photos', `${i}.jpg`));
+          }
+          for (const name of ['package.json', 'pnpm-lock.yaml', 'tsconfig.json', 'postcss.config.mjs']) {
+            copy(path.join(source, name), path.join(target, name));
+          }
+          const repo = (process.env.GITHUB_REPOSITORY || '').split('/')[1] || '';
+          const defaultBase = repo && !repo.toLowerCase().endsWith('.github.io') ? '/' + repo : '';
+          const basePath = (process.env.PAGES_BASE_PATH ?? defaultBase).replace(/\/$/, '');
+          if (basePath && !/^\/[A-Za-z0-9._-]+$/.test(basePath)) throw new Error('Caminho do Pages inválido.');
+          fs.writeFileSync(path.join(target, 'next.config.mjs'), `export default ${JSON.stringify({
+            output: 'export', basePath, trailingSlash: true,
+            images: { unoptimized: true }, poweredByHeader: false,
+            env: { NEXT_PUBLIC_BASE_PATH: basePath }
+          }, null, 2)};\n`);
+          fs.writeFileSync(path.join(target, 'app', 'public-asset.ts'), `export function assetUrl(src: string): string {
+            return src.startsWith('/photos/') ? (process.env.NEXT_PUBLIC_BASE_PATH || '') + src : src;
+          }\n`);
+          const pagePath = path.join(target, 'app', 'page.tsx');
+          let page = fs.readFileSync(pagePath, 'utf8');
+          page = page.replace(/(['"])use client\1;/, "'use client';\nimport {assetUrl} from './public-asset';");
+          page = page.replace(/src="(\/photos\/[^"\n]+)"/g, 'src={assetUrl("$1")}');
+          page = page.replace(/src=\{(p\.src|photo\.src|photoForm\.src|data\.secretPhoto|m\.photos\[0\]|src)\}/g, 'src={assetUrl($1)}');
+          page = page.replace('fetch(p.src)', 'fetch(assetUrl(p.src))');
+          page = page.replace('href={src}', 'href={assetUrl(src)}');
+          fs.writeFileSync(pagePath, page);
+          fs.writeFileSync(path.join(target, 'public', '.nojekyll'), '');
+          console.log('Projeto preparado para GitHub Pages em ' + (basePath || '/') + '.');
+          NODE
+
+      - name: Instalar pnpm
+        run: npm install --global pnpm@10.11.0
+
+      - name: Instalar dependências
+        working-directory: .pages-source
+        run: pnpm install --frozen-lockfile
+
+      - name: Construir site
+        working-directory: .pages-source
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+        run: pnpm build
+
+      - name: Enviar site pronto
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: .pages-source/out
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publicar
+        id: deployment
+        uses: actions/deploy-pages@v4
